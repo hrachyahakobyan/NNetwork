@@ -1,39 +1,40 @@
 #pragma once
 
-template<std::size_t R, std::size_t C, typename T>
+template<typename T>
 class NNMatrix
 {
 public:
 	NNMatrix();
-	explicit NNMatrix(const T val);
-	explicit NNMatrix(const std::vector<T>& vec);
-	explicit NNMatrix(T(*f)());
+	NNMatrix(std::size_t rows, std::size_t cols);
+	NNMatrix(std::size_t rows, std::size_t cols, T val);
+	NNMatrix(std::size_t rows, std::size_t cols, const std::vector<T>& vec);
+    NNMatrix(std::size_t rows, std::size_t cols, T(*f)());
 	~NNMatrix();
 	void print();
 public:
 	T& operator()(std::size_t row, std::size_t col);
 	const T& operator()(std::size_t row, std::size_t col) const;
 
-	NNMatrix<R, C, T> operator+(const NNMatrix<R, C, T> &m);
-	NNMatrix<R, C, T> operator-(const NNMatrix<R, C, T> &m);
-	NNMatrix<R, C, T> operator*(const NNMatrix<R, C, T> &m);
-	NNMatrix<R, C, T> operator/(const NNMatrix<R, C, T> &m);
-	NNMatrix<R, C, T>& operator+=(const NNMatrix<R, C, T> &m);
-	NNMatrix<R, C, T>& operator-=(const NNMatrix<R, C, T> &m);
-	NNMatrix<R, C, T>& operator*=(const NNMatrix<R, C, T> &m);
-	NNMatrix<R, C, T>& operator/=(const NNMatrix<R, C, T> &m);
+	NNMatrix<T> operator+(const NNMatrix<T> &m);
+	NNMatrix<T> operator-(const NNMatrix<T> &m);
+	NNMatrix<T> operator*(const NNMatrix<T> &m);
+	NNMatrix<T> operator/(const NNMatrix<T> &m);
+	NNMatrix<T>& operator+=(const NNMatrix<T> &m);
+	NNMatrix<T>& operator-=(const NNMatrix<T> &m);
+	NNMatrix<T>& operator*=(const NNMatrix<T> &m);
+	NNMatrix<T>& operator/=(const NNMatrix<T> &m);
 
-	NNMatrix<R, C, T> operator+(const T val);
-	NNMatrix<R, C, T> operator-(const T val);
-	NNMatrix<R, C, T> operator*(const T val);
-	NNMatrix<R, C, T> operator/(const T val);
-	NNMatrix<R, C, T>& operator+=(const T val);
-	NNMatrix<R, C, T>& operator-=(const T val);
-	NNMatrix<R, C, T>& operator*=(const T val);
-	NNMatrix<R, C, T>& operator/=(const T val);
+	NNMatrix<T> operator+(const T val);
+	NNMatrix<T> operator-(const T val);
+	NNMatrix<T> operator*(const T val);
+	NNMatrix<T> operator/(const T val);
+	NNMatrix<T>& operator+=(const T val);
+	NNMatrix<T>& operator-=(const T val);
+	NNMatrix<T>& operator*=(const T val);
+	NNMatrix<T>& operator/=(const T val);
 
-	bool operator==(const NNMatrix<R, C, T> &other) const;
-	bool operator!=(const NNMatrix<R, C, T> &other) const;
+	bool operator==(const NNMatrix<T> &other) const;
+	bool operator!=(const NNMatrix<T> &other) const;
 
 public:
 	std::size_t rows() const;
@@ -42,48 +43,55 @@ public:
 public:
 	void apply(T(*f)(T));
 public:
-	NNMatrix<1, C, T> row(std::size_t row) const;
-	NNMatrix<R, 1, T> col(std::size_t col) const;
-	NNMatrix<C, R, T> transpose() const;
-
-	template<std::size_t C2>
-	NNMatrix<R, C2, T> dot(const NNMatrix<C, C2, T>& m2) const;
+	NNMatrix<T> row(std::size_t row) const;
+	NNMatrix<T> col(std::size_t col) const;
+	NNMatrix<T> transpose() const;
+	NNMatrix<T> dot(const NNMatrix<T>& m2) const;
 private:
-	static_assert(R > 0, "Number of Rows must be greater than 0.");
-	static_assert(C > 0, "Number of Columns must be greater than 0.");
 	typedef std::vector<T> V;
 	typedef std::vector<V> M;
+	std::size_t rows_;
+	std::size_t cols_;
 	M m_;
+	void assert_rows(const NNMatrix<T>& other);
+	void assert_cols(const NNMatrix<T>& other);
+	void assert_dims(const NNMatrix<T>& other);
 };
 
 /*Constructors*/
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>::NNMatrix() : m_(R, V(C))
+template<typename T>
+NNMatrix<T>::NNMatrix() : rows_(0), cols_(0)
+{
+
+}
+
+template<typename T>
+NNMatrix<T>::NNMatrix(std::size_t rows, std::size_t cols) : rows_(rows), cols_(cols), m_(rows_, V(cols_))
 {
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>::~NNMatrix()
+template<typename T>
+NNMatrix<T>::~NNMatrix()
 {
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>::NNMatrix(const T val) : m_(R, V(C, val))
+template<typename T>
+NNMatrix<T>::NNMatrix(std::size_t rows, std::size_t cols, T val) : rows_(rows), cols_(cols), m_(rows_, V(cols_, val))
 {
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>::NNMatrix(const std::vector<T>& vec) : m_(R, vec)
+template<typename T>
+NNMatrix<T>::NNMatrix(std::size_t rows, std::size_t cols, const std::vector<T>& vec) : rows_(rows), cols_(cols), m_(rows_, vec)
 {
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>::NNMatrix(T(*f)()) : m_(R, V(C))
+template<typename T>
+NNMatrix<T>::NNMatrix(std::size_t rows, std::size_t cols, T(*f)()) : rows_(rows), cols_(cols), m_(rows_, V(cols_))
 {
-	for (int i = 0; i < R; i++)
+	for (std::size_t i = 0; i < rows_; i++)
 	{
-		for (int j = 0; j < C; j++)
+		for (std::size_t j = 0; j < cols_; j++)
 		{
 			m_[i][j] = f();
 		}
@@ -92,16 +100,16 @@ NNMatrix<R, C, T>::NNMatrix(T(*f)()) : m_(R, V(C))
 
 
 /*Access operators*/
-template<std::size_t R, std::size_t C, typename T>
-T& NNMatrix<R, C, T>::operator()(std::size_t row, std::size_t col)
+template<typename T>
+T& NNMatrix<T>::operator()(std::size_t row, std::size_t col)
 {
 	assert(row >= 0 && row < rows() && "Row out of bounds");
 	assert(col >= 0 && col < cols() && "Column out of bounds");
 	return m_[row][col];
 }
 
-template<std::size_t R, std::size_t C, typename T>
-const T& NNMatrix<R, C, T>::operator()(std::size_t row, std::size_t col) const
+template<typename T>
+const T& NNMatrix<T>::operator()(std::size_t row, std::size_t col) const
 {
 	assert(row >= 0 && row < rows() && "Row out of bounds");
 	assert(col >= 0 && col < cols() && "Column out of bounds");
@@ -109,63 +117,63 @@ const T& NNMatrix<R, C, T>::operator()(std::size_t row, std::size_t col) const
 }
 
 /*Dimensions*/
-template<std::size_t R, std::size_t C, typename T>
-std::size_t NNMatrix<R, C, T>::rows() const
+template<typename T>
+std::size_t NNMatrix<T>::rows() const
 {
-	return R;
+	return rows_;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-std::size_t NNMatrix<R, C, T>::cols() const
+template<typename T>
+std::size_t NNMatrix<T>::cols() const
 {
-	return C;
+	return cols_;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-std::size_t NNMatrix<R, C, T>::size() const
+template<typename T>
+std::size_t NNMatrix<T>::size() const
 {
 	return rows() * cols();
 }
 
 /*Algebraic operations*/
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<1, C, T>  NNMatrix<R, C, T>::row(std::size_t row) const
+template<typename T>
+NNMatrix<T>  NNMatrix<T>::row(std::size_t row) const
 {
 	assert(row >= 0 && row < rows() && "Row out of bounds");
-	return NNMatrix<1, R, T>(m_[row]);
+	return NNMatrix<T>(1, cols_, m_[row]);
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, 1, T>  NNMatrix<R, C, T>::col(std::size_t col) const
+template<typename T>
+NNMatrix<T>  NNMatrix<T>::col(std::size_t col) const
 {
 	assert(col >= 0 && col < cols() && "Col out of bounds");
-	NNMatrix<R, 1, T> mat;
-	for (int j = 0; j < R; j++)
+	NNMatrix<T> mat(rows_, 1);
+	for (int j = 0; j < rows_; j++)
 		mat(j, 0) = m_[j][0];
 	return mat;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<C, R, T>  NNMatrix<R, C, T>::transpose() const
+template<typename T>
+NNMatrix<T>  NNMatrix<T>::transpose() const
 {
-	NNMatrix<C, R, T> mat;
-	for (std::size_t i = 0; i < C; i++)
-		for (std::size_t j = 0; j < R; j++)
+	NNMatrix<T> mat(cols_, rows_);
+	for (std::size_t i = 0; i < cols_; i++)
+		for (std::size_t j = 0; j < rows_; j++)
 			mat(i, j) = m_[j][i];
 	return mat;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-template<std::size_t C2>
-NNMatrix<R, C2, T> NNMatrix<R, C, T>::dot(const NNMatrix<C, C2, T>& m1) const
+template<typename T>
+NNMatrix<T> NNMatrix<T>::dot(const NNMatrix<T>& m1) const
 {
-	NNMatrix<R, C2, T> out;
-	for (int i = 0; i < R; i++)
+	assert(cols_ == m1.rows() && "Dot product: incompatible dimensions");
+	NNMatrix<T> out(rows_, m1.cols());
+	for (std::size_t i = 0; i < rows_; i++)
 	{
-		for (int j = 0; j < C2; j++)
+		for (std::size_t j = 0; j < m1.cols(); j++)
 		{
 			T sum = T{};
-			for (int k = 0; k < C; k++)
+			for (std::size_t k = 0; k < cols_; k++)
 			{
 				sum = sum + (m_[i][k] * m1(k, j));
 			}
@@ -177,11 +185,12 @@ NNMatrix<R, C2, T> NNMatrix<R, C, T>::dot(const NNMatrix<C, C2, T>& m1) const
 
 
 /*Operators*/
-template<std::size_t R, std::size_t C, typename T>
-bool NNMatrix<R, C, T>::operator==(const NNMatrix<R, C, T> &other) const
+template<typename T>
+bool NNMatrix<T>::operator==(const NNMatrix<T> &other) const
 {
-	for (int i = 0; i < R; i++)
-		for (int j = 0; j < C; j++)
+	assert_dims(other);
+	for (int i = 0; i < rows_; i++)
+		for (int j = 0; j < cols_; j++)
 		{
 			if (m_[i][j] != other(i, j))
 				return false;
@@ -189,82 +198,91 @@ bool NNMatrix<R, C, T>::operator==(const NNMatrix<R, C, T> &other) const
 	return true;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-bool NNMatrix<R, C, T>::operator!=(const NNMatrix<R, C, T> &other) const
+template<typename T>
+bool NNMatrix<T>::operator!=(const NNMatrix<T> &other) const
 {
+	assert_dims(other);
 	return !((*this) == other);
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T> NNMatrix<R, C, T>::operator+(const NNMatrix<R, C, T> &m)
+template<typename T>
+NNMatrix<T> NNMatrix<T>::operator+(const NNMatrix<T> &m)
 {
-	NNMatrix<R, C, T> out(*this);
+	assert_dims(m);
+	NNMatrix<T> out(*this);
 	out += m;
 	return out;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T> NNMatrix<R, C, T>::operator-(const NNMatrix<R, C, T> &m)
+template<typename T>
+NNMatrix<T> NNMatrix<T>::operator-(const NNMatrix<T> &m)
 {
-	NNMatrix<R, C, T> out(*this);
+	assert_dims(m);
+	NNMatrix<T> out(*this);
 	out -= m;
 	return out;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T> NNMatrix<R, C, T>::operator*(const NNMatrix<R, C, T> &m)
+template<typename T>
+NNMatrix<T> NNMatrix<T>::operator*(const NNMatrix<T> &m)
 {
-	NNMatrix<R, C, T> out(*this);
+	assert_dims(m);
+	NNMatrix<T> out(*this);
 	out *= m;
 	return out;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T> NNMatrix<R, C, T>::operator/(const NNMatrix<R, C, T> &m)
+template<typename T>
+NNMatrix<T> NNMatrix<T>::operator/(const NNMatrix<T> &m)
 {
-	NNMatrix<R, C, T> out(*this);
+	assert_dims(m);
+	NNMatrix<T> out(*this);
 	out /= m;
 	return out;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator+=(const NNMatrix<R, C, T> &m)
+template<typename T>
+NNMatrix<T>& NNMatrix<T>::operator+=(const NNMatrix<T> &m)
 {
+	assert_dims(m);
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] += m(i, j);
 	return *this;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator-=(const NNMatrix<R, C, T> &m)
+template<typename T>
+NNMatrix<T>& NNMatrix<T>::operator-=(const NNMatrix<T> &m)
 {
+	assert_dims(m);
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] -= m(i, j);
 	return *this;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator*=(const NNMatrix<R, C, T> &m)
+template<typename T>
+NNMatrix<T>& NNMatrix<T>::operator*=(const NNMatrix<T> &m)
 {
+	assert_dims(m);
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] *= m(i, j);
 	return *this;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator/=(const NNMatrix<R, C, T> &m)
+template<typename T>
+NNMatrix<T>& NNMatrix<T>::operator/=(const NNMatrix<T> &m)
 {
+	assert_dims(m);
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] /= m(i, j);
 	return *this;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator+=(const T val)
+template<typename T>
+NNMatrix<T>& NNMatrix<T>::operator+=(const T val)
 {
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
@@ -272,15 +290,15 @@ NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator+=(const T val)
 	return *this;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator-=(const T val)
+template<typename T>
+NNMatrix<T>& NNMatrix<T>::operator-=(const T val)
 {
 	*this += (-val);
 	return *this;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator*=(const T val)
+template<typename T>
+NNMatrix<T>& NNMatrix<T>::operator*=(const T val)
 {
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
@@ -288,50 +306,69 @@ NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator*=(const T val)
 	return *this;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>& NNMatrix<R, C, T>::operator/=(const T val)
+template<typename T>
+NNMatrix<T>& NNMatrix<T>::operator/=(const T val)
 {
 	*this *= (1 / val);
 	return *this;
 }
 
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T> NNMatrix<R, C, T>::operator+(const T val)
+template<typename T>
+NNMatrix<T> NNMatrix<T>::operator+(const T val)
 {
-	NNMatrix<R, C, T> out(*this);
+	NNMatrix<T> out(*this);
 	out += val;
 	return out;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T> NNMatrix<R, C, T>::operator-(const T val)
+template<typename T>
+NNMatrix<T> NNMatrix<T>::operator-(const T val)
 {
-	NNMatrix<R, C, T> out(*this);
+	NNMatrix<T> out(*this);
 	out -= val;
 	return out;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T> NNMatrix<R, C, T>::operator*(const T val)
+template<typename T>
+NNMatrix<T> NNMatrix<T>::operator*(const T val)
 {
-	NNMatrix<R, C, T> out(*this);
+	NNMatrix<T> out(*this);
 	out *= val;
 	return out;
 }
 
-template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T> NNMatrix<R, C, T>::operator/(const T val)
+template<typename T>
+NNMatrix<T> NNMatrix<T>::operator/(const T val)
 {
-	NNMatrix<R, C, T> out(*this);
+	NNMatrix<T> out(*this);
 	out /= val;
 	return out;
 }
 
+/*Assertions*/
+template<typename T>
+void NNMatrix<T>::assert_rows(const NNMatrix<T>& other)
+{
+	assert(rows_ == other.rows() && "Error: incompatible rows");
+}
+
+template<typename T>
+void NNMatrix<T>::assert_cols(const NNMatrix<T>& other)
+{
+	assert(cols_ == other.cols() && "Error: incompatible columns");
+}
+
+template<typename T>
+void NNMatrix<T>::assert_dims(const NNMatrix<T>& other)
+{
+	assert_rows(other);
+	assert_cols(other);
+}
 
 /*Apply*/
-template<std::size_t R, std::size_t C, typename T>
-void NNMatrix<R, C, T>::apply(T(*f)(T))
+template<typename T>
+void NNMatrix<T>::apply(T(*f)(T))
 {
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
@@ -340,8 +377,8 @@ void NNMatrix<R, C, T>::apply(T(*f)(T))
 
 /*Print*/
 
-template<std::size_t R, std::size_t C, typename T>
-void NNMatrix<R, C, T>::print()
+template<typename T>
+void NNMatrix<T>::print()
 {
 	for (auto outIt = m_.begin(); outIt != m_.end(); ++outIt)
 	{
