@@ -48,11 +48,6 @@ public:
 
 	template<std::size_t C2>
 	NNMatrix<R, C2, T> dot(const NNMatrix<C, C2, T>& m2) const;
-
-public:
-	template<std::size_t K>
-	static NNMatrix<R, C, T> dot(const NNMatrix<R, K, T>& m1, const NNMatrix<K, C, T>& m2);
-
 private:
 	static_assert(R > 0, "Number of Rows must be greater than 0.");
 	static_assert(C > 0, "Number of Columns must be greater than 0.");
@@ -84,7 +79,7 @@ NNMatrix<R, C, T>::NNMatrix(const std::vector<T>& vec) : m_(R, vec)
 }
 
 template<std::size_t R, std::size_t C, typename T>
-NNMatrix<R, C, T>::NNMatrix(T(*f)())
+NNMatrix<R, C, T>::NNMatrix(T(*f)()) : m_(R, V(C))
 {
 	for (int i = 0; i < R; i++)
 	{
@@ -162,9 +157,22 @@ NNMatrix<C, R, T>  NNMatrix<R, C, T>::transpose() const
 
 template<std::size_t R, std::size_t C, typename T>
 template<std::size_t C2>
-NNMatrix<R, C2, T> NNMatrix<R, C, T>::dot(const NNMatrix<C, C2, T>& m2) const
+NNMatrix<R, C2, T> NNMatrix<R, C, T>::dot(const NNMatrix<C, C2, T>& m1) const
 {
-	return NNMatrix<R, C, T>::dot(*this, m2);
+	NNMatrix<R, C2, T> out;
+	for (int i = 0; i < R; i++)
+	{
+		for (int j = 0; j < C2; j++)
+		{
+			T sum = T{};
+			for (int k = 0; k < C; k++)
+			{
+				sum = sum + (m_[i][k] * m1(k, j));
+			}
+			out(i, j) = sum;
+		}
+	}
+	return out;
 }
 
 
@@ -327,7 +335,7 @@ void NNMatrix<R, C, T>::apply(T(*f)(T))
 {
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
-			m_(i, j) = f(m_(i, j));
+			m_[i][j] = f(m_[i][j]);
 }
 
 /*Print*/
@@ -343,25 +351,4 @@ void NNMatrix<R, C, T>::print()
 		}
 		std::cout << '\n';
 	}
-}
-
-/*Static methods*/
-template<std::size_t R, std::size_t C, typename T>
-template<std::size_t K>
-NNMatrix<R, C, T> NNMatrix<R, C, T>::dot(const NNMatrix<R, K, T>& m1, const NNMatrix<K, C, T>& m2)
-{
-	NNMatrix<R, C, T> out;
-	for (int i = 0; i < R; i++)
-	{
-		for (int j = 0; j < C; j++)
-		{
-			T sum = T{};
-			for (int k = 0; k < K; k++)
-			{
-				sum = sum + (m1(i, k) * m2(k, j));
-			}
-			out(i, j) = sum;
-		}
-	}
-	return out;
 }
