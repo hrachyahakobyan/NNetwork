@@ -50,6 +50,10 @@ NNetwork::NNetwork(const std::vector<std::size_t>& layers, ActivationFunctionTyp
 	}
 }
 
+NNetwork::~NNetwork()
+{
+
+}
 
 // Applies the given transformation to each element of the matrix
 NNMatrix<double> NNetwork::applyFunction(const NNMatrix<double>& matrix, Active_Func f)
@@ -95,7 +99,7 @@ NNMatrix<double> NNetwork::feed_forward(const NNMatrix<double>& input)
 
 // The main function of training using SGD. Divides the train data into separata mini batches
 // of size batch_size and feeds to update_mini_batch
-void NNetwork::train(std::vector<TrainInput>& trainData, std::size_t epochs, std::size_t batch_size, double eta)
+void NNetwork::train(std::vector<TrainInput>& trainData,const std::vector<TrainInput>& val_data,std::size_t epochs, std::size_t batch_size, double eta)
 {
 	for (std::size_t epoch = 0; epoch < epochs; epoch++)
 	{
@@ -103,20 +107,37 @@ void NNetwork::train(std::vector<TrainInput>& trainData, std::size_t epochs, std
 		std::vector<std::vector<TrainInput>> mini_batches;
 		break_trainData(trainData, batch_size, mini_batches);
 		std::vector<std::vector<TrainInput>>::const_iterator it;
-		for (it = mini_batches.begin(); it != mini_batches.end(); ++it)
+		for (std::size_t mb = 0; mb < mini_batches.size(); mb++)
 		{
-			update_mini_batch(*it, eta);
+			std::cout << "Mini batch " << mb << std::endl;
+			update_mini_batch(mini_batches[mb], eta);
+		}
+		if (val_data.size() > 0)
+		{
+			int correct = 0;
+			evaluate(val_data, correct);
+			std::cout << "Epoch: " << epoch << correct << " out of " << val_data.size() << std::endl;
 		}
 	}
 }
 
-int myrandom(int i) { return std::rand() % i; }
+void NNetwork::evaluate(const std::vector<TrainInput>& val_data, int& correct)
+{
+	correct = 0;
+	for (std::size_t i = 0; i < val_data.size(); i++)
+	{
+		NNMatrix<double> result = feed_forward(NNMatrix<double>(val_data[i].first.size(), 1, val_data[i].first));
+		std::pair<std::size_t, std::size_t> approx_result = result.max_index();
+		if (approx_result.first == val_data[i].second)
+			correct++;
+	}
+}
 
 void NNetwork::break_trainData(std::vector<TrainInput>& trainData, std::size_t batch_size, std::vector<std::vector<TrainInput>>& mini_batches)
 {
 	std::random_shuffle(trainData.begin(), trainData.end());
 	std::size_t mini_batches_count = trainData.size() / batch_size;
-	mini_batches = std::vector<std::vector<TrainInput>>(mini_batches_count);
+	mini_batches = std::vector<std::vector<TrainInput>>(mini_batches_count, std::vector<TrainInput>(batch_size));
 	std::size_t j = 0;
 	for (std::size_t i = 0; i < mini_batches_count; i++)
 	{
@@ -129,12 +150,13 @@ void NNetwork::break_trainData(std::vector<TrainInput>& trainData, std::size_t b
 
 void NNetwork::update_mini_batch(const std::vector<TrainInput>& trainData, double eta)
 {
-	auto nabla_b = std::vector<NNMatrix<double>>(biases_.size());
-	auto nabla_w = std::vector<NNMatrix<double>>(weights_.size());
+	auto nabla_b = biases_;
+	auto nabla_w = weights_;
 
 	for (std::size_t i = 0; i < trainData.size(); i++)
 	{
-		auto delta_nablas = back_prop(trainData[i].first, trainData[i].second);
+		std::cout << "Train data " << i << std::endl;
+		auto delta_nablas = back_prop(trainData[i]);
 		for (std::size_t i = 0; i < delta_nablas.first.size(); i++)
 		{
 			nabla_b[i] += delta_nablas.first[i];
@@ -152,13 +174,13 @@ void NNetwork::update_mini_batch(const std::vector<TrainInput>& trainData, doubl
 
 // Back propagation algorithm. Given a single input X and output Y, returns the layer by layer
 // derivatives of biases and weights of the cost function
-std::pair<std::vector<NNMatrix<double>>, std::vector<NNMatrix<double>>> NNetwork::back_prop(const std::vector<double>& X, int Y)
+std::pair<std::vector<NNMatrix<double>>, std::vector<NNMatrix<double>>> NNetwork::back_prop(const TrainInput& trainInput)
 {
 	auto nabla_b = std::vector<NNMatrix<double>>(biases_.size());
 	auto nabla_w = std::vector<NNMatrix<double>>(weights_.size());
 
 	// The activation of the first layer of the neurons, i.e. the input
-	NNMatrix<double> activation(X.size(), 1, X);
+	NNMatrix<double> activation(trainInput.first.size(), 1, trainInput.first);
 	// The vector of all activations of layers
 	std::vector<NNMatrix<double>> activations(layers_.size());
 	activations[0] = activation;
@@ -176,22 +198,22 @@ std::pair<std::vector<NNMatrix<double>>, std::vector<NNMatrix<double>>> NNetwork
 		zs[layer] = z;
 
 		// Apply transformation to the preapred input
-		activation = applyFunction(activation, active_);
+		activation = applyFunction(z, active_);
 		activations[layer + 1] = activation;
 	}
 
 	// Backward pass
-	NNMatrix<double> delta = cost_derivative(activations.back(), Y) * applyFunction(zs.back(), active_prime_);
+	NNMatrix<double> delta = cost_derivative(activations.back(), trainInput.second) * applyFunction(zs.back(), active_prime_);
 	nabla_b.back() = delta;
 	nabla_w.back() = delta.dot(activations[activations.size() - 2].transpose());
 
-	for (int l = layers_.size() - 2; l >= 0; l++)
+	for (int l = layers_.size() - 2; l >= 1; l--)
 	{
-		auto z = zs[l];
+		auto z = zs[l - 1];
 		auto sp = applyFunction(z, active_prime_);
-		delta = ((weights_[l - 1].transpose()).dot(delta)) * sp;
-		nabla_b[l] = delta;
-		nabla_w[l] = delta.dot(activations[l + 1].transpose());
+		delta = ((weights_[l].transpose()).dot(delta)) * sp;
+		nabla_b[l - 1] = delta;
+		nabla_w[l - 1] = delta.dot(activations[l - 1].transpose());
 	}
 
 	return std::make_pair(nabla_b, nabla_w);

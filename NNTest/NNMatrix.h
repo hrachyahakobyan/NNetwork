@@ -42,6 +42,8 @@ public:
 	std::size_t size() const;
 public:
 	void apply(T(*f)(T));
+	std::pair<std::size_t, std::size_t> max_index() const;
+	std::pair<std::size_t, std::size_t> min_index() const;
 public:
 	NNMatrix<T> row(std::size_t row) const;
 	NNMatrix<T> col(std::size_t col) const;
@@ -373,6 +375,51 @@ void NNMatrix<T>::apply(T(*f)(T))
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] = f(m_[i][j]);
+}
+
+
+template<typename T>
+std::pair<std::size_t, std::size_t> NNMatrix<T>::max_index() const
+{
+	if (size() == 0)
+		return std::make_pair(0,0);
+	T max = m_[0][0];
+	std::pair<std::size_t, std::size_t> max_id(0,0);
+	for (std::size_t i = 0; i < rows_; i++)
+	{
+		for (std::size_t j = 0; j < cols_; j++)
+		{
+			if (m_[i][j] > max)
+			{
+				max = m_[i][j];
+				max_id.first = i;
+				max_id.second = j;
+			}
+		}
+	}
+	return max_id;
+}
+
+template<typename T>
+std::pair<std::size_t, std::size_t> NNMatrix<T>::min_index() const
+{
+	if (size() == 0)
+		return std::make_pair<0, 0>;
+	T min = m_[0][0];
+	std::pair<std::size_t, std::size_t> min_id(0, 0);
+	for (std::size_t i = 0; i < rows_; i++)
+	{
+		for (std::size_t j = 0; j < cols_; j++)
+		{
+			if (m_[i][j] < min)
+			{
+				min = m_[i][j];
+				min_id.first = i;
+				min_id.second = j;
+			}
+		}
+	}
+	return min_id;
 }
 
 /*Print*/
