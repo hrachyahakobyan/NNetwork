@@ -25,7 +25,7 @@ public:
 	NNMatrix<T>& operator/=(const NNMatrix<T> &m);
 
 	NNMatrix<T> operator+(const T val);
-	NNMatrix<T> operator-(const T val);
+	NNMatrix<T> operator-(const T val) const;
 	NNMatrix<T> operator*(const T val);
 	NNMatrix<T> operator/(const T val);
 	NNMatrix<T>& operator+=(const T val);
@@ -44,6 +44,8 @@ public:
 	void apply(T(*f)(T));
 	std::pair<std::size_t, std::size_t> max_index() const;
 	std::pair<std::size_t, std::size_t> min_index() const;
+	T norm(bool root = true) const;
+	T euclid_dist(const NNMatrix<T>& other, bool root = true) const;
 public:
 	NNMatrix<T> row(std::size_t row) const;
 	NNMatrix<T> col(std::size_t col) const;
@@ -293,7 +295,7 @@ NNMatrix<T>& NNMatrix<T>::operator+=(const T val)
 }
 
 template<typename T>
-NNMatrix<T>& NNMatrix<T>::operator-=(const T val)
+NNMatrix<T>& NNMatrix<T>::operator-=(const T val) 
 {
 	*this += (-val);
 	return *this;
@@ -325,7 +327,7 @@ NNMatrix<T> NNMatrix<T>::operator+(const T val)
 }
 
 template<typename T>
-NNMatrix<T> NNMatrix<T>::operator-(const T val)
+NNMatrix<T> NNMatrix<T>::operator-(const T val) const
 {
 	NNMatrix<T> out(*this);
 	out -= val;
@@ -377,6 +379,7 @@ void NNMatrix<T>::apply(T(*f)(T))
 			m_[i][j] = f(m_[i][j]);
 }
 
+/* Additional functionality */
 
 template<typename T>
 std::pair<std::size_t, std::size_t> NNMatrix<T>::max_index() const
@@ -420,6 +423,30 @@ std::pair<std::size_t, std::size_t> NNMatrix<T>::min_index() const
 		}
 	}
 	return min_id;
+}
+
+
+template<typename T>
+T NNMatrix<T>::norm(bool root) const
+{
+	if (size() == 0)
+		return T();
+	T sum = m_[0][0];
+	for (std::size_t i = 0; i < rows_; i++)
+	{
+		for (std::size_t j = 0; j < cols_; j++)
+			sum += m_[i][j] * m_[i][j];
+	}
+	if (root == true)
+		return T(std::sqrt(sum));
+	else
+		return sum;
+}
+
+template<typename T>
+T NNMatrix<T>::euclid_dist(const NNMatrix<T>& other, bool root) const
+{
+	return norm(*this - other, root);
 }
 
 /*Print*/

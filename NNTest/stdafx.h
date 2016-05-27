@@ -16,6 +16,7 @@
 #include <assert.h>
 #include <algorithm>
 #include "RandomManager.h"
+#include "NNMatrix.h"
 
 
 

@@ -36,6 +36,7 @@ void convert_data(std::vector<std::pair<std::vector<double>, unsigned int>>& tra
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	
 	mnist_data *data;
 	unsigned int cnt;
 	int ret;
@@ -50,11 +51,11 @@ int _tmain(int argc, _TCHAR* argv[])
 		convert_data(train_data, valid_data, data, cnt);
 		free(data);
 		std::vector<std::size_t> layer = { 28 * 28, 30, 10 };
-		NNetwork network(layer, NNetwork::ActivationFunctionType::Sigmoid);
+		NNetwork network(layer, NNetwork::ActivationFunctionType::Sigmoid, NNetwork::CostType::Quadratic);
 		network.train(train_data, valid_data, 10, 10, 3.0);
 
 	}
-
+	
 	
 
 	int a;

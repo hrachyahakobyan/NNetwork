@@ -9,18 +9,62 @@ double random()
 	return distribution(gen);
 }
 
-double sigmoid(double a)
+double NNetwork::log(double a)
+{
+	if (a <= 0)
+		return 0;
+	return std::log(a);
+}
+
+/* Activation functions and their derivatives*/
+
+double NNetwork::sigmoid(double a)
 {
 	return 1 / (1 + std::exp(-a));
 }
 
-double sigmoid_prime(double a)
+double NNetwork::sigmoid_prime(double a)
 {
 	return sigmoid(a)*(1 - sigmoid(a));
 }
 
+/*Cost functions and their derivatives */
 
-NNetwork::NNetwork(const std::vector<std::size_t>& layers, ActivationFunctionType activType) : layers_(layers)
+double NNetwork::cost_quad(const Matrix& a, const int y)
+{
+	return 0.5 * (a - double(y)).norm(false);
+}
+
+double NNetwork::cost_cross(const Matrix& a, const int y)
+{
+	double sum = 0;
+	for (std::size_t i = 0; i < a.cols(); i++)
+		sum += -y * log(a(0, i)) - (1 - y) * log(1 - a(0, i));
+	return sum;
+}
+
+NNetwork::Matrix NNetwork::cost_deriv_quad(const Matrix& z, const Matrix& a, const int y)
+{
+	return (a- y) * applyFunction(z, active_prime_);
+}
+
+NNetwork::Matrix NNetwork::cost_deriv_cross(const Matrix& z, const Matrix& a, const int y)
+{
+	return (a - double(y));
+}
+
+// Applies the given transformation to each element of the matrix
+NNMatrix<double> NNetwork::applyFunction(const NNMatrix<double>& matrix, Active_Func f)
+{
+	NNMatrix<double> out(matrix.rows(), matrix.cols());
+	for (std::size_t i = 0; i < matrix.rows(); i++)
+		for (std::size_t j = 0; j < matrix.cols(); j++)
+			out(i, j) = (this->*f)(matrix(i, j));
+	return out;
+}
+
+
+NNetwork::NNetwork(const std::vector<std::size_t>& layers, ActivationFunctionType activType, CostType costType, RegularizationType regType) : layers_(layers)
 {
 	// Prepare the biases. The first layer is assumed not to have biases as it is the input layer
 	// Biases are Nx1 vectors, where N is the number of neurons in the given layer
@@ -41,13 +85,33 @@ NNetwork::NNetwork(const std::vector<std::size_t>& layers, ActivationFunctionTyp
 	{
 		case ActivationFunctionType::Sigmoid:
 		{
-			active_prime_ = &sigmoid_prime;
-			active_ = &sigmoid;
+			active_prime_ = &NNetwork::sigmoid_prime;
+			active_ = &NNetwork::sigmoid;
 		}
 		break;
 		default:
 			break;
 	}
+
+	switch (costType)
+	{
+		case CostType::CrossEntropy:
+		{
+			cost_ = &NNetwork::cost_cross;
+			cost_deriv_ = &NNetwork::cost_deriv_cross;
+		}
+		break;
+		case CostType::Quadratic:
+		{
+			cost_ = &NNetwork::cost_quad;
+			cost_deriv_ = &NNetwork::cost_deriv_quad;
+		}
+		break;
+		default:
+			break;
+
+	}
+
 }
 
 NNetwork::~NNetwork()
@@ -55,15 +119,6 @@ NNetwork::~NNetwork()
 
 }
 
-// Applies the given transformation to each element of the matrix
-NNMatrix<double> NNetwork::applyFunction(const NNMatrix<double>& matrix, Active_Func f)
-{
-	NNMatrix<double> out(matrix.rows(), matrix.cols());
-	for (std::size_t i = 0; i < matrix.rows(); i++)
-		for (std::size_t j = 0; j < matrix.cols(); j++)
-			out(i, j) = f(matrix(i, j));
-	return out;
-}
 
 // Prepares the input for the layer given the input from the previous layer, the biases and the weight matrix.
 NNMatrix<double> NNetwork::prepare_input(const NNMatrix<double>& input, const NNMatrix<double>& biases, const NNMatrix<double>& weights)
@@ -202,7 +257,7 @@ std::pair<std::vector<NNMatrix<double>>, std::vector<NNMatrix<double>>> NNetwork
 		activations[layer + 1] = activation;
 	}
 
-	// Backward pass
+	// Backward passj
 	NNMatrix<double> delta = cost_derivative(activations.back(), trainInput.second) * applyFunction(zs.back(), active_prime_);
 	nabla_b.back() = delta;
 	nabla_w.back() = delta.dot(activations[activations.size() - 2].transpose());
