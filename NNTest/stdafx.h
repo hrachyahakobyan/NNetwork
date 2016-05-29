@@ -16,8 +16,8 @@
 #include <assert.h>
 #include <algorithm>
 #include <chrono>
+#include <Eigen/Dense>
 #include "RandomManager.h"
-#include "NNMatrix.h"
 
 
 
