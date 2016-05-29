@@ -3,12 +3,12 @@
 
 #define TIME_EPOCHS true
 #define TIME_MINI_BATCHES true
-#define TIME_TRAIN_DATA false
-#define TIME_BB false
-#define TIME_BB_FF false // feedforward loop in backpropagation
-#define TIME_BB_BB_LOOP false // backpropagation loop in backpropagation
-#define TIME_BB_BB_PRELOOP false
-#define TIME_NABLA_LOOP false 
+#define TIME_TRAIN_DATA true
+#define TIME_BB true
+#define TIME_BB_FF true // feedforward loop in backpropagation
+#define TIME_BB_BB_LOOP true // backpropagation loop in backpropagation
+#define TIME_BB_BB_PRELOOP true
+#define TIME_NABLA_LOOP true 
 
 std::default_random_engine gen;
 std::normal_distribution<double> distribution;
@@ -146,7 +146,6 @@ NNetwork::NVector NNetwork::activate(std::size_t layer, const NVector& input)
 	NVector prepared_input = prepare_input(input, biases_[layer - 1], weights_[layer - 1]);
 	return applyFunction(prepared_input, active_);
 }
-
 
 // Feed the given input to the neural network and return the output from the last layer
 NNetwork::NVector NNetwork::feed_forward(const NVector& input)
@@ -294,7 +293,7 @@ void NNetwork::back_prop(const TrainInput& trainInput)
 	std::chrono::high_resolution_clock::time_point tBBPreloopBegin = std::chrono::high_resolution_clock::now();
 	NVector delta = cost_derivative(activations_.back(), trainInput.second).cwiseProduct(applyFunction(zs_.back(), active_prime_));
 	nabla_b_back_.back() = delta;
-	nabla_w_back_.back() = delta * (activations_[activations_.size() - 2].transpose());
+	nabla_w_back_.back().noalias() = delta * (activations_[activations_.size() - 2].transpose());
 	if (TIME_BB_BB_PRELOOP)
 	{
 		std::chrono::high_resolution_clock::time_point tBBPreloopEnd = std::chrono::high_resolution_clock::now();
@@ -306,9 +305,9 @@ void NNetwork::back_prop(const TrainInput& trainInput)
 
 	for (int l = layers_.size() - 2; l >= 1; l--)
 	{
-		delta = ((weights_[l].transpose()) * (delta)).cwiseProduct(applyFunction(zs_[l - 1], active_prime_));
+		delta = (weights_[l].transpose() * (delta)).cwiseProduct(applyFunction(zs_[l - 1], active_prime_));
 		nabla_b_back_[l - 1] = delta;
-		nabla_w_back_[l - 1] = delta * (activations_[l - 1].transpose());
+		nabla_w_back_[l - 1].noalias() = delta * (activations_[l - 1].transpose());
 	}
 	if (TIME_BB_BB_LOOP)
 	{
