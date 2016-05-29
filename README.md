@@ -14,5 +14,5 @@ The program supports 2 types of cost functions (yet)
 
 Learning is based on the stochastic gradient method with adjustable batch size and learning rate.
 
-
-
+The configuration properties are changed for debug and release version. 
+To achieve maximum performance, release version is tuned to optimize the code using compiler optimization, SSE2 extended instruction set and OpenMP. Debuggin is turned off for these version.
