@@ -41,7 +41,9 @@ public:
 	std::size_t cols() const;
 	std::size_t size() const;
 public:
+	static double opTime;
 	void apply(T(*f)(T));
+	void assign(const std::vector<T>& vec);
 	std::pair<std::size_t, std::size_t> max_index() const;
 	std::pair<std::size_t, std::size_t> min_index() const;
 	T norm(bool root = true) const;
@@ -61,6 +63,9 @@ private:
 	void assert_cols(const NNMatrix<T>& other);
 	void assert_dims(const NNMatrix<T>& other);
 };
+
+template<typename T>
+double NNMatrix<T>::opTime = 0;
 
 /*Constructors*/
 
@@ -86,8 +91,10 @@ NNMatrix<T>::NNMatrix(std::size_t rows, std::size_t cols, T val) : rows_(rows), 
 }
 
 template<typename T>
-NNMatrix<T>::NNMatrix(std::size_t rows, std::size_t cols, const std::vector<T>& vec) : rows_(rows), cols_(cols), m_(rows_, vec)
+NNMatrix<T>::NNMatrix(std::size_t rows, std::size_t cols, const std::vector<T>& vec) : rows_(rows), cols_(cols), m_(rows_, V(1))
 {
+	for (std::size_t i = 0; i < rows_; i++)
+		m_[i][0] = vec[i];
 }
 
 template<typename T>
@@ -160,10 +167,13 @@ NNMatrix<T>  NNMatrix<T>::col(std::size_t col) const
 template<typename T>
 NNMatrix<T>  NNMatrix<T>::transpose() const
 {
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	NNMatrix<T> mat(cols_, rows_);
 	for (std::size_t i = 0; i < cols_; i++)
 		for (std::size_t j = 0; j < rows_; j++)
 			mat(i, j) = m_[j][i];
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	return mat;
 }
 
@@ -171,6 +181,7 @@ template<typename T>
 NNMatrix<T> NNMatrix<T>::dot(const NNMatrix<T>& m1) const
 {
 	assert(cols_ == m1.rows() && "Dot product: incompatible dimensions");
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	NNMatrix<T> out(rows_, m1.cols());
 	for (std::size_t i = 0; i < rows_; i++)
 	{
@@ -184,6 +195,8 @@ NNMatrix<T> NNMatrix<T>::dot(const NNMatrix<T>& m1) const
 			out(i, j) = sum;
 		}
 	}
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	return out;
 }
 
@@ -249,9 +262,12 @@ template<typename T>
 NNMatrix<T>& NNMatrix<T>::operator+=(const NNMatrix<T> &m)
 {
 	assert_dims(m);
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] += m(i, j);
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	return *this;
 }
 
@@ -259,9 +275,12 @@ template<typename T>
 NNMatrix<T>& NNMatrix<T>::operator-=(const NNMatrix<T> &m)
 {
 	assert_dims(m);
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] -= m(i, j);
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	return *this;
 }
 
@@ -269,9 +288,12 @@ template<typename T>
 NNMatrix<T>& NNMatrix<T>::operator*=(const NNMatrix<T> &m)
 {
 	assert_dims(m);
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] *= m(i, j);
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count()/ 1000000.0;
 	return *this;
 }
 
@@ -279,18 +301,24 @@ template<typename T>
 NNMatrix<T>& NNMatrix<T>::operator/=(const NNMatrix<T> &m)
 {
 	assert_dims(m);
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] /= m(i, j);
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	return *this;
 }
 
 template<typename T>
 NNMatrix<T>& NNMatrix<T>::operator+=(const T val)
 {
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] += val;
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	return *this;
 }
 
@@ -304,9 +332,12 @@ NNMatrix<T>& NNMatrix<T>::operator-=(const T val)
 template<typename T>
 NNMatrix<T>& NNMatrix<T>::operator*=(const T val)
 {
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] *= val;
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	return *this;
 }
 
@@ -374,11 +405,33 @@ void NNMatrix<T>::assert_dims(const NNMatrix<T>& other)
 template<typename T>
 void NNMatrix<T>::apply(T(*f)(T))
 {
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	for (std::size_t i = 0; i < rows(); i++)
 		for (std::size_t j = 0; j < cols(); j++)
 			m_[i][j] = f(m_[i][j]);
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 }
 
+template<typename T>
+void NNMatrix<T>::assign(const std::vector<T>& vec)
+{
+	if (rows_ != 1 && cols_ != 1)
+		return;
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+	if (rows_ == 1)
+	{
+		for (std::size_t j = 0; j < cols_; j++)
+			m_[0][j] = vec[j];
+	}
+	else
+	{
+		for (std::size_t i = 0; i < rows_; i++)
+			m_[i][0] = vec[i];
+	}
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
+}
 /* Additional functionality */
 
 template<typename T>
@@ -386,6 +439,7 @@ std::pair<std::size_t, std::size_t> NNMatrix<T>::max_index() const
 {
 	if (size() == 0)
 		return std::make_pair(0,0);
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	T max = m_[0][0];
 	std::pair<std::size_t, std::size_t> max_id(0,0);
 	for (std::size_t i = 0; i < rows_; i++)
@@ -400,6 +454,8 @@ std::pair<std::size_t, std::size_t> NNMatrix<T>::max_index() const
 			}
 		}
 	}
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	return max_id;
 }
 
@@ -408,6 +464,7 @@ std::pair<std::size_t, std::size_t> NNMatrix<T>::min_index() const
 {
 	if (size() == 0)
 		return std::make_pair<0, 0>;
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	T min = m_[0][0];
 	std::pair<std::size_t, std::size_t> min_id(0, 0);
 	for (std::size_t i = 0; i < rows_; i++)
@@ -422,6 +479,8 @@ std::pair<std::size_t, std::size_t> NNMatrix<T>::min_index() const
 			}
 		}
 	}
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	return min_id;
 }
 
@@ -431,12 +490,15 @@ T NNMatrix<T>::norm(bool root) const
 {
 	if (size() == 0)
 		return T();
+	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	T sum = m_[0][0];
 	for (std::size_t i = 0; i < rows_; i++)
 	{
 		for (std::size_t j = 0; j < cols_; j++)
 			sum += m_[i][j] * m_[i][j];
 	}
+	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	opTime += std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() / 1000000.0;
 	if (root == true)
 		return T(std::sqrt(sum));
 	else

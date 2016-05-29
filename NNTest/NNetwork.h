@@ -18,6 +18,13 @@ private:
 	std::vector<std::size_t> layers_;
 	std::vector<Matrix> biases_;
 	std::vector<Matrix> weights_;
+
+	std::vector<Matrix> nabla_b_back_;
+	std::vector<Matrix> nabla_w_back_;
+
+	std::vector<Matrix> activations_;
+	std::vector<Matrix> zs_;
+
 private:
 	typedef double(NNetwork::*Active_Func)(double);
 	Active_Func active_;
@@ -32,7 +39,7 @@ private:
 	Matrix activate(std::size_t layer, const Matrix& input);
 	Matrix feed_forward(const Matrix& input);
 	Matrix cost_derivative(const Matrix& output_activation, int y);
-	std::pair<std::vector<Matrix>, std::vector<Matrix>> back_prop(const TrainInput& trainInput);
+	void back_prop(const TrainInput& trainInput);
 	void update_mini_batch(const std::vector<TrainInput>& trainData, double eta);
 	void break_trainData(std::vector<TrainInput>& trainData, std::size_t batch_size, std::vector<std::vector<TrainInput>>& mini_batches);
 	

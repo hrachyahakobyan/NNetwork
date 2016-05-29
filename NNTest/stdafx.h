@@ -15,6 +15,7 @@
 #include <iostream>
 #include <assert.h>
 #include <algorithm>
+#include <chrono>
 #include "RandomManager.h"
 #include "NNMatrix.h"
 

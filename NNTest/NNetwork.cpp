@@ -64,7 +64,8 @@ NNMatrix<double> NNetwork::applyFunction(const NNMatrix<double>& matrix, Active_
 }
 
 
-NNetwork::NNetwork(const std::vector<std::size_t>& layers, ActivationFunctionType activType, CostType costType, RegularizationType regType) : layers_(layers)
+NNetwork::NNetwork(const std::vector<std::size_t>& layers, ActivationFunctionType activType, CostType costType, RegularizationType regType) : layers_(layers),
+nabla_b_back_(layers.size() - 1), nabla_w_back_(layers.size() - 1), activations_(layers.size()), zs_(layers.size() - 1)
 {
 	// Prepare the biases. The first layer is assumed not to have biases as it is the input layer
 	// Biases are Nx1 vectors, where N is the number of neurons in the given layer
@@ -79,6 +80,8 @@ NNetwork::NNetwork(const std::vector<std::size_t>& layers, ActivationFunctionTyp
 	{
 		weights_.push_back(NNMatrix<double>(layers[i + 1], layers[i], &random));
 	}
+
+	activations_[0] = NNMatrix<double>(layers_[0], 1);
 
 	// Prepare the activation and its derivative
 	switch (activType)
@@ -132,11 +135,8 @@ NNMatrix<double> NNetwork::prepare_input(const NNMatrix<double>& input, const NN
 NNMatrix<double> NNetwork::activate(std::size_t layer, const NNMatrix<double>& input)
 {
 	// The layers are indexed starting from 0
-	NNMatrix<double> biases = biases_[layer - 1];
-	NNMatrix<double> weights = weights_[layer - 1];
-	NNMatrix<double> prepared_input = prepare_input(input, biases, weights);
-	NNMatrix<double> activated = applyFunction(prepared_input, active_);
-	return activated;
+	NNMatrix<double> prepared_input = prepare_input(input, biases_[layer - 1], weights_[layer - 1]);
+	return applyFunction(prepared_input, active_);
 }
 
 
@@ -159,13 +159,18 @@ void NNetwork::train(std::vector<TrainInput>& trainData,const std::vector<TrainI
 	for (std::size_t epoch = 0; epoch < epochs; epoch++)
 	{
 		std::cout << "Epoch " << epoch << std::endl;
+		std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 		std::vector<std::vector<TrainInput>> mini_batches;
 		break_trainData(trainData, batch_size, mini_batches);
 		std::vector<std::vector<TrainInput>>::const_iterator it;
 		for (std::size_t mb = 0; mb < mini_batches.size(); mb++)
 		{
 			std::cout << "Mini batch " << mb << std::endl;
+			std::chrono::high_resolution_clock::time_point tt1 = std::chrono::high_resolution_clock::now();
 			update_mini_batch(mini_batches[mb], eta);
+			std::chrono::high_resolution_clock::time_point tt2 = std::chrono::high_resolution_clock::now();
+			double dur = std::chrono::duration_cast<std::chrono::microseconds>(tt2 - tt1).count();
+			std::cout << "Time " << dur / 1000000 << '\n';
 		}
 		if (val_data.size() > 0)
 		{
@@ -173,6 +178,10 @@ void NNetwork::train(std::vector<TrainInput>& trainData,const std::vector<TrainI
 			evaluate(val_data, correct);
 			std::cout << "Epoch: " << epoch << correct << " out of " << val_data.size() << std::endl;
 		}
+		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+		double dur = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+		std::cout << "Time " << dur / 1000000 << '\n';
+
 	}
 }
 
@@ -211,11 +220,17 @@ void NNetwork::update_mini_batch(const std::vector<TrainInput>& trainData, doubl
 	for (std::size_t i = 0; i < trainData.size(); i++)
 	{
 		std::cout << "Train data " << i << std::endl;
-		auto delta_nablas = back_prop(trainData[i]);
-		for (std::size_t i = 0; i < delta_nablas.first.size(); i++)
+		std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+		back_prop(trainData[i]);
+		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+		double dur = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+		std::cout << "Back_prop time " << dur / 1000000 << '\n';
+		std::cout << "Matrix time " << NNMatrix<double>::opTime << '\n';
+		NNMatrix<double>::opTime = 0;
+		for (std::size_t i = 0; i < nabla_b_back_.size(); i++)
 		{
-			nabla_b[i] += delta_nablas.first[i];
-			nabla_w[i] += delta_nablas.second[i];
+			nabla_b[i] += nabla_b_back_[i];
+			nabla_w[i] += nabla_w_back_[i];
 		}
 	}
 
@@ -227,57 +242,56 @@ void NNetwork::update_mini_batch(const std::vector<TrainInput>& trainData, doubl
 }
 
 
-// Back propagation algorithm. Given a single input X and output Y, returns the layer by layer
+// Back propagation algorithm. Given a single input X and output Y, updates the layer by layer
 // derivatives of biases and weights of the cost function
-std::pair<std::vector<NNMatrix<double>>, std::vector<NNMatrix<double>>> NNetwork::back_prop(const TrainInput& trainInput)
+void NNetwork::back_prop(const TrainInput& trainInput)
 {
-	auto nabla_b = std::vector<NNMatrix<double>>(biases_.size());
-	auto nabla_w = std::vector<NNMatrix<double>>(weights_.size());
-
+	//std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	// The activation of the first layer of the neurons, i.e. the input
-	NNMatrix<double> activation(trainInput.first.size(), 1, trainInput.first);
-	// The vector of all activations of layers
-	std::vector<NNMatrix<double>> activations(layers_.size());
-	activations[0] = activation;
-
-	// The vector storing all the prepared inputs, i.e.
-	// the inputs passed through the prepare_input method
-	std::vector<NNMatrix<double>> zs(layers_.size() - 1);
-	
-
+	activations_[0].assign(trainInput.first);
 	// Feeding forward
 	for (std::size_t layer = 0; layer < biases_.size(); layer++)
 	{
 		// The prepared input of the current layer
-		auto z = prepare_input(activation, biases_[layer], weights_[layer]);
-		zs[layer] = z;
-
+		//std::chrono::high_resolution_clock::time_point tt1 = std::chrono::high_resolution_clock::now();
+		zs_[layer] = prepare_input(activations_[layer], biases_[layer], weights_[layer]);
+		//std::chrono::high_resolution_clock::time_point tt2 = std::chrono::high_resolution_clock::now();
+		//double durt = std::chrono::duration_cast<std::chrono::microseconds>(tt2 - tt1).count();
+		//std::cout << "Back_prop prepare input time " << durt / 1000000 << '\n';
 		// Apply transformation to the preapred input
-		activation = applyFunction(z, active_);
-		activations[layer + 1] = activation;
+		//std::chrono::high_resolution_clock::time_point tt3 = std::chrono::high_resolution_clock::now();
+		activations_[layer + 1] = applyFunction(zs_[layer], active_);;
+		//std::chrono::high_resolution_clock::time_point tt4 = std::chrono::high_resolution_clock::now();
+		//double durt2 = std::chrono::duration_cast<std::chrono::microseconds>(tt4 - tt3).count();
+		//std::cout << "Back_prop apply function time " << durt2 / 1000000 << '\n';
+
 	}
+	//std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+	//double dur = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+	//std::cout << "Back_prop feed forward " << dur / 1000000 << '\n';
 
 	// Backward passj
-	NNMatrix<double> delta = cost_derivative(activations.back(), trainInput.second) * applyFunction(zs.back(), active_prime_);
-	nabla_b.back() = delta;
-	nabla_w.back() = delta.dot(activations[activations.size() - 2].transpose());
+	//std::chrono::high_resolution_clock::time_point t3 = std::chrono::high_resolution_clock::now();
 
+	NNMatrix<double> delta = cost_derivative(activations_.back(), trainInput.second) * applyFunction(zs_.back(), active_prime_);
+	nabla_b_back_.back() = delta;
+	nabla_w_back_.back() = delta.dot(activations_[activations_.size() - 2].transpose());
 	for (int l = layers_.size() - 2; l >= 1; l--)
 	{
-		auto z = zs[l - 1];
-		auto sp = applyFunction(z, active_prime_);
-		delta = ((weights_[l].transpose()).dot(delta)) * sp;
-		nabla_b[l - 1] = delta;
-		nabla_w[l - 1] = delta.dot(activations[l - 1].transpose());
+		//auto sp = applyFunction(zs_[l - 1], active_prime_);
+		delta = ((weights_[l].transpose()).dot(delta)) * applyFunction(zs_[l - 1], active_prime_);
+		nabla_b_back_[l - 1] = delta;
+		nabla_w_back_[l - 1] = delta.dot(activations_[l - 1].transpose());
 	}
+	//std::chrono::high_resolution_clock::time_point t4 = std::chrono::high_resolution_clock::now();
+	//double dur2 = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();
+	//std::cout << "Back_prop back prop " << dur2 / 1000000 << '\n';
 
-	return std::make_pair(nabla_b, nabla_w);
 }
 
 NNMatrix<double> NNetwork::cost_derivative(const NNMatrix<double>& output_activation, int y)
 {
-	auto copy(output_activation);
-	return (copy - double(y));
+	return (output_activation - double(y));
 }
 
 
