@@ -3,77 +3,18 @@
 
 #define TIME_EPOCHS true
 #define TIME_MINI_BATCHES true
-#define TIME_TRAIN_DATA true
-#define TIME_BB true
-#define TIME_BB_FF true // feedforward loop in backpropagation
-#define TIME_BB_BB_LOOP true // backpropagation loop in backpropagation
-#define TIME_BB_BB_PRELOOP true
-#define TIME_NABLA_LOOP true 
+#define TIME_TRAIN_DATA false
+#define TIME_BB false
+#define TIME_BB_FF false // feedforward loop in backpropagation
+#define TIME_BB_BB_LOOP false // backpropagation loop in backpropagation
+#define TIME_BB_BB_PRELOOP false
+#define TIME_NABLA_LOOP false 
 
 std::default_random_engine gen;
 std::normal_distribution<double> distribution;
 
-double random()
-{
-	return distribution(gen);
-}
 
-double NNetwork::log(double a)
-{
-	if (a <= 0)
-		return 0;
-	return std::log(a);
-}
-
-/* Activation functions and their derivatives*/
-
-double NNetwork::sigmoid(double a)
-{
-	return 1 / (1 + std::exp(-a));
-}
-
-double NNetwork::sigmoid_prime(double a)
-{
-	return sigmoid(a)*(1 - sigmoid(a));
-}
-
-/*Cost functions and their derivatives */
-
-double NNetwork::cost_quad(const NVector& a, const int y)
-{
-	return (a.array() - y).matrix().squaredNorm() * 0.5;
-}
-
-double NNetwork::cost_cross(const NVector& a, const int y)
-{
-	double sum = 0;
-	for (std::size_t i = 0; i < a.cols(); i++)
-		sum += -y * log(a(0, i)) - (1 - y) * log(1 - a(0, i));
-	return sum;
-}
-
-NNetwork::NVector NNetwork::cost_deriv_quad(const NVector& z, const NVector& a, const int y)
-{
-	return (a.array() - y).matrix().cwiseProduct(applyFunction(z, active_prime_));
-}
-
-NNetwork::NVector NNetwork::cost_deriv_cross(const NVector& z, const NVector& a, const int y)
-{
-	return (a.array() - y);
-}
-
-// Applies the given transformation to each element of the matrix
-NNetwork::NVector NNetwork::applyFunction(const NVector& matrix, Active_Func f)
-{
-	NVector out = matrix;
-	for (std::size_t i = 0; i < matrix.rows(); i++)
-		for (std::size_t j = 0; j < matrix.cols(); j++)
-			out(i, j) = (this->*f)(matrix(i, j));
-	return out;
-}
-
-
-NNetwork::NNetwork(const std::vector<std::size_t>& layers, ActivationFunctionType activType, CostType costType, RegularizationType regType) : layers_(layers),
+NNetwork::NNetwork(const std::vector<std::size_t>& layers, ActivationFunction activType, CostFunction costType, Regularization regType) : layers_(layers),
 nabla_b_back_(layers.size() - 1), nabla_w_back_(layers.size() - 1), activations_(layers.size()), zs_(layers.size() - 1)
 {
 	// Prepare the biases. The first layer is assumed not to have biases as it is the input layer
@@ -95,7 +36,7 @@ nabla_b_back_(layers.size() - 1), nabla_w_back_(layers.size() - 1), activations_
 	// Prepare the activation and its derivative
 	switch (activType)
 	{
-		case ActivationFunctionType::Sigmoid:
+		case ActivationFunction::Sigmoid:
 		{
 			active_prime_ = &NNetwork::sigmoid_prime;
 			active_ = &NNetwork::sigmoid;
@@ -107,13 +48,13 @@ nabla_b_back_(layers.size() - 1), nabla_w_back_(layers.size() - 1), activations_
 
 	switch (costType)
 	{
-		case CostType::CrossEntropy:
+		case CostFunction::CrossEntropy:
 		{
 			cost_ = &NNetwork::cost_cross;
 			cost_deriv_ = &NNetwork::cost_deriv_cross;
 		}
 		break;
-		case CostType::Quadratic:
+		case CostFunction::Quadratic:
 		{
 			cost_ = &NNetwork::cost_quad;
 			cost_deriv_ = &NNetwork::cost_deriv_quad;
@@ -153,7 +94,7 @@ NNetwork::NVector NNetwork::feed_forward(const NVector& input)
 	NVector output = input;
 	for (std::size_t layer = 0; layer < biases_.size(); layer++)
 	{
-		output = activate(layer + 1, output);
+		output = activate(layer + 1, output); 
 	}
 	return output;
 }
@@ -232,6 +173,9 @@ void NNetwork::update_mini_batch(const std::vector<TrainInput>& trainData, doubl
 
 	for (std::size_t i = 0; i < trainData.size(); i++)
 	{
+		static int count = 0;
+		count++;
+		static double totalBB = 0;
 		std::chrono::high_resolution_clock::time_point tBegin = std::chrono::high_resolution_clock::now();
 		back_prop(trainData[i]);
 		if (TIME_BB)
@@ -239,7 +183,9 @@ void NNetwork::update_mini_batch(const std::vector<TrainInput>& trainData, doubl
 			std::chrono::high_resolution_clock::time_point tBBEnd = std::chrono::high_resolution_clock::now();
 			double dur = std::chrono::duration_cast<std::chrono::microseconds>(tBBEnd - tBegin).count();
 			std::cout << "BB time " << dur / 1000000 << '\n';
+			totalBB += dur;
 		}
+		std::cout << "Average BB time " << totalBB / (count * 1000000) << '\n';
 		std::chrono::high_resolution_clock::time_point tNablaBegin = std::chrono::high_resolution_clock::now();
 		for (std::size_t i = 0; i < nabla_b_back_.size(); i++)
 		{
@@ -283,25 +229,35 @@ void NNetwork::back_prop(const TrainInput& trainInput)
 		zs_[layer] = prepare_input(activations_[layer], biases_[layer], weights_[layer]);
 		activations_[layer + 1] = applyFunction(zs_[layer], active_);;
 	}
+
+	///////////
+	///////////
 	if (TIME_BB_FF)
 	{
 		std::chrono::high_resolution_clock::time_point tFFEnd = std::chrono::high_resolution_clock::now();
 		double dur = std::chrono::duration_cast<std::chrono::microseconds>(tFFEnd - tFFBegin).count();
 		std::cout << "BB FF time " << dur / 1000000 << '\n';
 	}
-	// Backward pass
 	std::chrono::high_resolution_clock::time_point tBBPreloopBegin = std::chrono::high_resolution_clock::now();
-	NVector delta = cost_derivative(activations_.back(), trainInput.second).cwiseProduct(applyFunction(zs_.back(), active_prime_));
+	/////////////
+	////////////
+
+	// Backward pass
+	NVector delta = (this->*cost_deriv_)(zs_.back(), activations_.back(), trainInput.second);
 	nabla_b_back_.back() = delta;
 	nabla_w_back_.back().noalias() = delta * (activations_[activations_.size() - 2].transpose());
+	
+	///////////
+	///////////
 	if (TIME_BB_BB_PRELOOP)
 	{
 		std::chrono::high_resolution_clock::time_point tBBPreloopEnd = std::chrono::high_resolution_clock::now();
 		double dur2 = std::chrono::duration_cast<std::chrono::microseconds>(tBBPreloopEnd - tBBPreloopBegin).count();
 		std::cout << "BB preloop time " << dur2 / 1000000 << '\n';
 	}
-
 	std::chrono::high_resolution_clock::time_point tBBLoopBegin = std::chrono::high_resolution_clock::now();
+	///////////
+	///////////
 
 	for (int l = layers_.size() - 2; l >= 1; l--)
 	{
@@ -309,20 +265,84 @@ void NNetwork::back_prop(const TrainInput& trainInput)
 		nabla_b_back_[l - 1] = delta;
 		nabla_w_back_[l - 1].noalias() = delta * (activations_[l - 1].transpose());
 	}
+
+	////////////
+	////////////
 	if (TIME_BB_BB_LOOP)
 	{
 		std::chrono::high_resolution_clock::time_point tBBLoopEnd = std::chrono::high_resolution_clock::now();
 		double dur = std::chrono::duration_cast<std::chrono::microseconds>(tBBLoopEnd - tBBLoopBegin).count();
 		std::cout << "BB loop time " << dur / 1000000 << '\n';
 	}
+	///////////
+	///////////
 }
 
-NNetwork::NVector NNetwork::cost_derivative(const NVector& output_activation, int y)
+double random()
 {
-	return (output_activation.array() - y);
+	return distribution(gen);
 }
 
+double NNetwork::log(double a)
+{
+	if (a <= 0)
+		return 0;
+	return std::log(a);
+}
 
+/* Activation functions and their derivatives*/
+
+double NNetwork::sigmoid(double a)
+{
+	return 1 / (1 + std::exp(-a));
+}
+
+double NNetwork::sigmoid_prime(double a)
+{
+	return sigmoid(a)*(1 - sigmoid(a));
+}
+
+/*Cost functions and their derivatives */
+
+// @param a - the output of the layer
+// @param y - the real output for the given input
+// @return - the cost 
+double NNetwork::cost_quad(const NVector& a, const int y)
+{
+	return (a.array() - y).matrix().squaredNorm() * 0.5;
+}
+
+double NNetwork::cost_cross(const NVector& a, const int y)
+{
+	double sum = 0;
+	for (std::size_t i = 0; i < a.cols(); i++)
+		sum += -y * log(a(0, i)) - (1 - y) * log(1 - a(0, i));
+	return sum;
+}
+
+// @param z - preactivation of the layer
+// @param a - activation, i.e. the output of the layer
+// @param y - the real output for the given input
+// @return - the error of the layer
+NNetwork::NVector NNetwork::cost_deriv_quad(const NVector& z, const NVector& a, const int y)
+{
+	return (a.array() - y).matrix().cwiseProduct(applyFunction(z, active_prime_));
+}
+
+NNetwork::NVector NNetwork::cost_deriv_cross(const NVector& z, const NVector& a, const int y)
+{
+	return (a.array() - y);
+}
+
+// Applies the given transformation to each element of the matrix
+NNetwork::NVector NNetwork::applyFunction(const NVector& matrix, Active_Func f)
+{
+	NVector out = matrix;
+	for (std::size_t i = 0; i < matrix.rows(); i++)
+		for (std::size_t j = 0; j < matrix.cols(); j++)
+			out(i, j) = (this->*f)(matrix(i, j));
+	return out;
+}
 
 
 

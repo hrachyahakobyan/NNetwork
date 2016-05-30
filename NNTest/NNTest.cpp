@@ -51,7 +51,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		convert_data(train_data, valid_data, data, cnt);
 		free(data);
 		std::vector<std::size_t> layer = { 28 * 28, 30, 10 };
-		NNetwork network(layer, NNetwork::ActivationFunctionType::Sigmoid, NNetwork::CostType::Quadratic);
+		NNetwork network(layer, ActivationFunction::Sigmoid, CostFunction::Quadratic);
 		network.train(train_data, valid_data, 10, 10, 3.0);
 
 	}

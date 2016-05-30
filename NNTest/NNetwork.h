@@ -1,13 +1,22 @@
+enum class ActivationFunction{
+	Sigmoid
+};
 
+enum class CostFunction{
+	Quadratic,
+	CrossEntropy
+};
+
+enum class Regularization{
+	None,
+	L1,
+	L2
+};
 
 class NNetwork
 {
 public:
-	enum class ActivationFunctionType{Sigmoid};
-	enum class CostType{Quadratic, CrossEntropy};
-	enum class RegularizationType{None, L1, L2};
-public:
-	NNetwork(const std::vector<std::size_t>& layers, ActivationFunctionType activType, CostType costType, RegularizationType regType = RegularizationType::None);
+	NNetwork(const std::vector<std::size_t>& layers, ActivationFunction activType, CostFunction costType, Regularization regType = Regularization::None);
 	~NNetwork(); 
 
 	typedef std::pair<std::vector<double>, unsigned int> TrainInput;
@@ -32,13 +41,14 @@ private:
 
 	typedef double(NNetwork::*Cost_Func)(const NVector& a, const int y);
 	typedef NVector(NNetwork::*Cost_Deriv_Func)(const NVector& z, const NVector& a, const int y);
+
 	Cost_Func cost_;
 	Cost_Deriv_Func cost_deriv_;
+
 private:
 	NVector prepare_input(const NVector& input, const NVector& biases, const NMatrix& weights);
 	NVector activate(std::size_t layer, const NVector& input);
 	NVector feed_forward(const NVector& input);
-	NVector cost_derivative(const NVector& output_activation, int y);
 	void back_prop(const TrainInput& trainInput);
 	void update_mini_batch(const std::vector<TrainInput>& trainData, double eta);
 	void break_trainData(std::vector<TrainInput>& trainData, std::size_t batch_size, std::vector<std::vector<TrainInput>>& mini_batches);
@@ -54,5 +64,6 @@ private:
 
 	 NVector cost_deriv_quad(const NVector& z, const NVector& a, const int y);
 	 NVector cost_deriv_cross(const NVector& z, const NVector& a, const int y);
+
 	 NVector applyFunction(const NVector& matrix, Active_Func f);
 };
