@@ -1,5 +1,6 @@
 # NNetwork
 A C++ implementation of feed-forward multi-layer neural network. 
+Uses Eigen C++ matrix library for matrix operations. 
 
 # NNetwork
 
