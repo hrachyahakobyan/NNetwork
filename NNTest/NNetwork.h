@@ -1,10 +1,12 @@
 enum class ActivationFunction{
-	Sigmoid
+	Sigmoid,
+	Softmax
 };
 
 enum class CostFunction{
 	Quadratic,
-	CrossEntropy
+	CrossEntropy,
+	LogLikelyhood
 };
 
 enum class Regularization{
